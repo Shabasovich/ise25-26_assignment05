@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static de.seuhd.campuscoffee.TestUtils.*;
+import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -92,6 +93,19 @@ public class CucumberPosSteps {
     }
 
     // TODO: Add Given step for new scenario
+    @Given("the following POS list exists:")
+    public void theFollowingPosExists(List<PosDto> posList) {
+        List<PosDto> createdPosList = createPos(posList);
+        for (int i = 0; i < createdPosList.size(); i++) {
+            PosDto created = createdPosList.get(i);
+            PosDto retrieved = retrievePosById(created.id());
+            assertThat(retrieved)
+                    .usingRecursiveComparison()
+                    .ignoringFields("id", "createdAt", "updatedAt")
+                    .isEqualTo(created);
+        }
+
+    }
 
     // When -----------------------------------------------------------------------
 
@@ -102,8 +116,32 @@ public class CucumberPosSteps {
     }
 
     // TODO: Add When step for new scenario
+    @When("I update the POS {string} with the following details:")
 
     // Then -----------------------------------------------------------------------
+    public void iUpdateThePosWithTheFollowingDetails(String posName, PosDto updatedDetails) {
+        PosDto existingPos = retrievePosByName(posName);
+        PosDto posToUpdate = PosDto.builder()
+                .id(existingPos.id())
+                .name(updatedDetails.name())
+                .description(updatedDetails.description())
+                .type(updatedDetails.type())
+                .campus(updatedDetails.campus())
+                .street(updatedDetails.street())
+                .houseNumber(updatedDetails.houseNumber())
+                .postalCode(updatedDetails.postalCode())
+                .city(updatedDetails.city())
+                .build();
+
+        updatedPos = given()
+                .contentType("application/json")
+                .body(posToUpdate)
+                .when()
+                .put("/api/pos/{id}", existingPos.id())
+                .then()
+                .statusCode(200)
+                .extract().as(PosDto.class);
+    }
 
     @Then("the POS list should contain the same elements in the same order")
     public void thePosListShouldContainTheSameElementsInTheSameOrder() {
@@ -112,6 +150,15 @@ public class CucumberPosSteps {
                 .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id", "createdAt", "updatedAt")
                 .containsExactlyInAnyOrderElementsOf(createdPosList);
     }
+    @Then("the POS list should contain the following elements in the same order:")
+    public void thePosListShouldContainTheFollowingElementsInTheSameOrder(List<PosDto> expectedPosList) {
+        // Retrieve actual POS list from the API
+        List<PosDto> actualPosList = retrievePos();
 
+        // Compare the actual list with the expected list from the feature file
+        assertThat(actualPosList)
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id", "createdAt", "updatedAt")
+                .containsExactlyInAnyOrderElementsOf(expectedPosList);
+    }
     // TODO: Add Then step for new scenario
 }
